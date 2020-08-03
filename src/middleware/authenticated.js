@@ -28,7 +28,7 @@ exports.ensureAuth = (req, res, next)=> {
             return res.status(404).send({ message: 'El token no es válido' });
         }
         req.user = payload;
-        console.log(payload.apodo);
+      
         next();
 
     }
