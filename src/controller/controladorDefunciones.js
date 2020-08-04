@@ -34,10 +34,16 @@ module.exports.controlador=(req,res)=>{
             controllerFunciones.EliminarTweet(array[1],req,res)/*IdTweet */
         break;
         case 'view_tweet':
-            controllerFunciones.view_tweets(req,res)/*basio*/
+            controllerFunciones.view_tweets(array[1],req,res)/*Apodo*/
         break; 
-        case 'folow':
+        case 'follow':
             controllerFunciones.folow(array[1],req,res)/*Apodo*/
+        break;
+        case 'unfollow':
+            controllerFunciones.unfollow(array[1],req,res)/*Apodo */
+        break;
+        case 'profile':
+            controllerFunciones.profile(array[1],req,res)/*Apodo */
         break;
         default:
             res.status(500).send({mesagge:'Error comando'});

@@ -13,7 +13,7 @@ var TwitterSchema =Schema({
     ],
     follow:[
         {
-            seguidor:{type:String,require:true}
+            seguidos:{type:String,require:true}
         }
     ],
     follower:[

@@ -3,7 +3,8 @@ var Twitter = require('../models/modeltwit')
 var bcrypt = require('bcrypt-nodejs')
 var jwt = require('../services/jwt');
 const { idUser } = require('../middleware/authenticated');
-const { findOne } = require('../models/modeltwit');
+const { findOne, findOneAndDelete } = require('../models/modeltwit');
+const api = require('../routes/twittRoutes');
 
 
 function crearCuenta(nombre,usuario,password, res) {
@@ -76,14 +77,13 @@ let AgregarTweet=(tweet,req,res)=>{
     })
 }
 
-let view_tweets =(req,res)=>{
-    Twitter.find({_id:req.user.sub},{"tweets":1,"apodo":1,"_id":0},(err,tweets)=>{
-        if(err){return res.status(500).send({message:'Error en la petición'})}
-        if(!tweets){
-            return res.status(404).send({message:'Error en la petición'})
-            
-        }else{
-            return res.status(200).send({tweets})
+let view_tweets =(apodo,req,res)=>{
+    Twitter.find({'apodo':apodo},{'tweets':1,'_id':0},(err,verTweets)=>{
+        if(err){
+            return res.status(500).send({message:'Error en la petición'})
+        }
+        if(verTweets){
+            return res.status(200).send({verTweets})
         }
     })
 }
@@ -111,7 +111,7 @@ let UpdateTweet = (IdTweet,descripcion,req,res) =>{
     
     Twitter.findById(req.user.sub,(err,apodo)=>{
         if(err){
-            return res.status(500).send({message:'No se pudo encontrar el usuario'})
+            return res.status(500).send({message:'Error en la petición de buscar usuario'})
         }
         if(apodo){
             Twitter.findOneAndUpdate({'tweets._id':IdTweet},{'tweets.$.descripcion':descripcion},{new:true},(err,actualizar)=>{    
@@ -126,6 +126,89 @@ let UpdateTweet = (IdTweet,descripcion,req,res) =>{
         }
     })
 }  
+let folow =(seguidos,req,res)=>{
+    Twitter.findById(req.user.apodo,(err,apodo)=>{
+        
+        if(err){
+            return res.status(500).send({message:'error en la petición al encontrar el usuario'})
+        }
+
+        if(apodo){
+            Twitter.findByIdAndUpdate(req.user.sub,{$push:{follow:{seguidos}}},(err,seguidor)=>{
+                if(err){
+                    return res.status(500).send({message:'No se pudo realizar la operación'})
+                }
+                if(seguidor){
+                    Twitter.findOneAndUpdate({'apodo':seguidos},{$push:{follower:{seguidores:seguidos}}},(err,seguido)=>{
+                        if(err){
+                            return res.status(500).send({message:'Error al intentar seguir al usuario'})
+                        }
+                        if(seguido){
+                            return res.status(200).send({seguido})
+                        }
+
+                    })
+                }else{
+                    return res.status(404).send({message:'no se pudo guardar el usuario'},{seguidos})
+                }
+            })
+        }else{
+            return res.status(404).send({message:'no se pudo encontrar el usuario'},{seguidos})
+        }
+    })
+}
+let unfollow=(dejarDeSeguir,req,res)=>{
+    Twitter.findById(req.user.sub,(err,apodo)=>{
+        if(err){
+            return res.status(500).send({message:'No se pudo realizar la operación'})
+        }
+        if(apodo){
+            Twitter.findOneAndUpdate({'follow.seguidos':dejarDeSeguir},{$pull:{follow:{seguidos:dejarDeSeguir}}},{new:true},(err,eliminarSeguidor)=>{
+                if(err){
+                    return res.status(500).send({message:'No se pudo realizar la petición'})
+                }
+                if(eliminarSeguidor){
+                    Twitter.findOne({'apodo':dejarDeSeguir},(err,eliminarseguido)=>{
+                        if(err){
+                            return res.status(500).send({message:'No se pudo realizar la busquda del seguido'})
+                        }
+                        
+                        if(eliminarseguido){
+                            Twitter.findOneAndUpdate({'follower.seguidores':dejarDeSeguir},{$pull:{follower:{seguidores:dejarDeSeguir}}},{new:true},(err,seguidoEliminado)=>{
+                                if(err){
+                                    return res.status(500).send({message:'No se pudo realizar la accion de eliminar el seguido'})
+                                }
+                                
+                                if(seguidoEliminado){
+                                    return res.status(200).send({eliminarseguido})
+                                }else{
+                                    return res.status(404).send({message:'No se pudo eliminar el seguido'})
+                                }
+                            })
+                        }
+                    })
+                }else{
+                    return res.status(404).send({message:'Nos se pudo dejar de seguir'})
+                }
+            })
+        }else{
+            return res.status(404).send({message:'No se pudo encontra el usuario'})
+        }
+        
+    })
+}
+let profile=(apodo,req,res)=>{
+    Twitter.findOne({'apodo':apodo},(err,perfil)=>{
+        if(err){
+            return res.status(500).send({message:'No se pudo hacer la petición'})
+        }
+        if(perfil){
+            return res.status(200).send({perfil})
+        }else{
+            return res.status(404).send({message:'No se pudo encontrar el perfil'})
+        }
+    })
+}
 
 module.exports = {
     crearCuenta,
@@ -133,10 +216,9 @@ module.exports = {
     login,
     view_tweets,
     UpdateTweet,
-    EliminarTweet
+    EliminarTweet,
+    folow,
+    unfollow,
+    profile
 }
 
-/**
- * sile(0,1)
- * join() Agregar va 
- */
