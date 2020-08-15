@@ -8,7 +8,12 @@ var TwitterSchema =Schema({
     password:String,
     tweets:[
         {
-            descripcion:{type:String,require:true}
+            descripcion:{type:String,require:true},
+            like:{type:Number},
+            NameLike:[],
+            respuestas:{type:String,requiere:true},
+            retweet:{type:String,requiere:true},
+            respuestasTweet:{type:String,require:true}
         }
     ],
     follow:[

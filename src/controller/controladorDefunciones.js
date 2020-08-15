@@ -1,6 +1,5 @@
 'use strict'
 var controllerFunciones= require('./controllerTwit');
-const { AgregarTweet } = require('./controllerTwit');
 
 module.exports.controlador=(req,res)=>{
     let regex= new RegExp(comandsTotal,'i')
@@ -18,17 +17,17 @@ module.exports.controlador=(req,res)=>{
         case 'login':
             controllerFunciones.login(array[1],array[2],array[3],req,res) /*apodo contraseña */
         break;
-        case 'add_tweet':
+        case 'add_tweet': 
             let a =array.slice(1);
             let b = a.join(' ')
             
             controllerFunciones.AgregarTweet(b,req,res)/* tweet*/
         break;
         case
-            'edit_tweet':
+            'edit_tweet': 
             let c =array.slice(2);
-            let d = c.join(' ') 
-            controllerFunciones.UpdateTweet(array[1],d,req,res)/*id Tweet */
+            let e = c.join(' ') 
+            controllerFunciones.UpdateTweet(array[1],e,req,res)/*id Tweet */
         break;  
         case 'delete_tweet':
             controllerFunciones.EliminarTweet(array[1],req,res)/*IdTweet */
@@ -44,6 +43,15 @@ module.exports.controlador=(req,res)=>{
         break;
         case 'profile':
             controllerFunciones.profile(array[1],req,res)/*Apodo */
+        break;
+        case'like':
+            
+            controllerFunciones.like(array[1],req,res)/*IdTweet */
+        break;
+        case 'reply_tweet':
+            let x =array.slice(2);
+            let y = x.join(' ')
+            controllerFunciones.responderTweet(array[1],y,req,res)/*IdTweet Respuesta */
         break;
         default:
             res.status(500).send({mesagge:'Error comando'});

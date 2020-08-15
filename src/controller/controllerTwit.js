@@ -2,8 +2,8 @@
 var Twitter = require('../models/modeltwit')
 var bcrypt = require('bcrypt-nodejs')
 var jwt = require('../services/jwt');
-const { idUser } = require('../middleware/authenticated');
-const { findOne, findOneAndDelete } = require('../models/modeltwit');
+const { idUser, apodo } = require('../middleware/authenticated');
+const { findOne, findOneAndDelete, findById } = require('../models/modeltwit');
 const api = require('../routes/twittRoutes');
 
 
@@ -127,7 +127,7 @@ let UpdateTweet = (IdTweet,descripcion,req,res) =>{
     })
 }  
 let folow =(seguidos,req,res)=>{
-    Twitter.findById(req.user.apodo,(err,apodo)=>{
+    Twitter.findById(req.user.sub,(err,apodo)=>{
         
         if(err){
             return res.status(500).send({message:'error en la petición al encontrar el usuario'})
@@ -139,7 +139,7 @@ let folow =(seguidos,req,res)=>{
                     return res.status(500).send({message:'No se pudo realizar la operación'})
                 }
                 if(seguidor){
-                    Twitter.findOneAndUpdate({'apodo':seguidos},{$push:{follower:{seguidores:seguidos}}},(err,seguido)=>{
+                    Twitter.findOneAndUpdate({'apodo':seguidos},{$push:{follower:{seguidores:req.user.apodo}}},(err,seguido)=>{
                         if(err){
                             return res.status(500).send({message:'Error al intentar seguir al usuario'})
                         }
@@ -174,7 +174,7 @@ let unfollow=(dejarDeSeguir,req,res)=>{
                         }
                         
                         if(eliminarseguido){
-                            Twitter.findOneAndUpdate({'follower.seguidores':dejarDeSeguir},{$pull:{follower:{seguidores:dejarDeSeguir}}},{new:true},(err,seguidoEliminado)=>{
+                            Twitter.findOneAndUpdate({'follower.seguidores':req.user.apodo},{$pull:{follower:{seguidores:req.user.apodo}}},{new:true},(err,seguidoEliminado)=>{
                                 if(err){
                                     return res.status(500).send({message:'No se pudo realizar la accion de eliminar el seguido'})
                                 }
@@ -210,6 +210,108 @@ let profile=(apodo,req,res)=>{
     })
 }
 
+
+let like=(idTweet,req,res)=>{
+    let apodo=req.user.apodo;
+    let likedado = true;
+    Twitter.findOne({'tweets._id':idTweet},(err,existenciaTweet)=>{
+        if(err){
+
+            return res.status(500).send({message:'No se pudo realizar la peticion'})
+        }
+            
+        if(existenciaTweet){
+            Twitter.findOne({'_id':req.user.sub},{follow:{$elemMatch:{seguidos:existenciaTweet.apodo}}},(err,comproFollow)=>{
+                if(err){
+                    return res.status(500).send({message:'Error en la petición'})
+                }else if (comproFollow.follow.length === 0) 
+                    { return res.status(404).send({ message:'Solo seguidores pueden darle like a este tweet'}) 
+                } else if (comproFollow.follow.length === 1) {  
+                    Twitter.findOne({'tweets._id':idTweet},(err,tweetEncontrado)=>{
+                        if(err){
+                            return res.status(500).send({message:'No se pudo realizr'})
+                        }
+                        if(tweetEncontrado){
+                                    Twitter.findOne({'tweets._id':idTweet},{tweets:{$elemMatch:{_id:idTweet}}},{'tweets.$.NameLike':1},(err,listo)=>{
+                                        
+                                        if(err){
+                                            return res.status(500).send({message:'No se pudo realizar la petición'})
+                                        }      
+                                            for (let x = 0; x < listo.tweets[0].NameLike.length; x++) {
+                                                if (listo.tweets[0].NameLike[x] === req.user.apodo) {
+                                                    console.log(likedado)
+                                                    likedado = false
+                                                        Twitter.updateOne({'tweets._id':idTweet},{$inc:{['tweets.$.like']:-1}},(err,listo2)=>{
+                                                            if (err) return res.status(500).send({message: 'Error en la petición dada'}) 
+                                                            if (!listo2) {
+                                                                return res.status(404).send({message: 'Error to send your opinion'})
+                                                            }else{
+                                                                Twitter.findOneAndUpdate({'tweets._id':idTweet},{$pull:{'tweets.$.NameLike':apodo}},(err,likeDado)=>{
+                                                                    if(err){
+                                                                        return res.status(500).send({message:'No se pudo realizar la operación'})
+                                                                    }
+                                                                    return res.status(200).send({like: likeDado})
+                                                                })
+                                                            }
+                                                        })
+                                                    
+                                                    return res.status(500).send({message: 'A dejado de darle like al tweet'})
+                                                }                                                                                                                                                                              
+                                            }
+                                            if (likedado === true) {
+                                                Twitter.updateOne({'tweets._id':idTweet},{$inc:{['tweets.$.like']:1}},(err,listo2)=>{
+                                                    console.log(err)
+                                                    if (err) return res.status(500).send({message: 'Error en la petición dada'})
+                                                    if (!listo2) {
+                                                        return res.status(404).send({message: 'Error to send your opinion'})
+                                                    }else{
+                                                        Twitter.findOneAndUpdate({'tweets._id':idTweet},{$push:{'tweets.$.NameLike':apodo}},(err,likeDado2)=>{
+                                                            if(err){
+                                                                return res.status(500).send({message:'No se pudo realizar la operación'})
+                                                            }
+                                                            return res.status(200).send({like: likeDado2})
+                                                        })
+                                                    }
+                                                    
+                                                })
+                                            }
+                                            
+                                    })
+                                
+                                
+                            
+                        }
+                    })
+                    
+                }                                          
+              
+            })
+        }else{
+            return res.status(404).send({message:'Nos se pudo encontrar tweet'})
+        }
+    })
+}
+let responderTweet=(IdTweet,Respuesta,req,res)=>{
+ 
+    Twitter.findById(req.user.sub,(err,usuarioEncontrado)=>{
+        if(err){
+            return res.status(404).send({message:'No se pudo realizar la petición'})
+        }
+        if(usuarioEncontrado){
+            Twitter.findOneAndUpdate({ 'tweets._id': IdTweet },{$push:{'tweets.$.respuestasTweet':Respuesta}},(err,RespuestaIngresada)=>{
+                if(err){
+                    return res.status(404).send({message:'No se pudo realizar la petición'})
+                }
+                if(RespuestaIngresada){
+                    return res.status(200).send({usuarioEncontrado})
+                }
+            })
+        }
+    })
+}
+
+
+
 module.exports = {
     crearCuenta,
     AgregarTweet,
@@ -219,6 +321,9 @@ module.exports = {
     EliminarTweet,
     folow,
     unfollow,
-    profile
+    profile,
+    like,
+    responderTweet,
+    
 }
 
